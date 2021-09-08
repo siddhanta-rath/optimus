@@ -7,9 +7,7 @@ LAST_TAG := "$(shell git rev-list --tags --max-count=1)"
 OPMS_VERSION := "$(shell git describe --tags ${LAST_TAG})-next"
 PROTON_COMMIT := "6fa8d49d26bfd7aabc0978de6e9039bb35732695"
 
-all: build
-
-.PHONY: build smoke-test unit-test test clean generate dist init vet
+.PHONY: build smoke-test unit-test test clean generate vet
 
 build: generate # build optimus binary
 	@echo " > building optimus version ${OPMS_VERSION}"
@@ -45,9 +43,6 @@ vet: ## run go vet
 
 coverage: ## print code coverage
 	go test -race -coverprofile coverage.txt -covermode=atomic ./... -tags=unit_test && go tool cover -html=coverage.txt
-
-dist: generate
-	@bash ./scripts/build-distributables.sh
 
 clean:
 	rm -rf ./optimus ./dist ./proton ./api/proto/*

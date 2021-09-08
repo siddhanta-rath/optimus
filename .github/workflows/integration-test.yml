@@ -3,7 +3,6 @@ name: integration-test
 on:
   push:
     branches:
-      - master
       - main
   pull_request:
   workflow_dispatch:
