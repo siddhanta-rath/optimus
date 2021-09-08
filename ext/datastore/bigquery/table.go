@@ -1,9 +1,12 @@
 package bigquery
 
 import (
+	"cloud.google.com/go/bigquery"
 	"context"
+	"fmt"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/googleapis/google-cloud-go-testing/bigquery/bqiface"
 	"github.com/odpf/optimus/models"
@@ -123,4 +126,70 @@ func deleteTable(ctx context.Context, resourceSpec models.ResourceSpec, client b
 
 	table := dataset.Table(bqTable.Table)
 	return table.Delete(ctx)
+}
+
+func backupTable(ctx context.Context, spec models.ResourceSpec, client bqiface.Client) error {
+	bqResourceSrc, ok := spec.Spec.(BQTable)
+	if !ok {
+		return errors.New("failed to read table spec for bigquery")
+	}
+
+	// inherit from base
+	bqResourceSrc.Metadata.Labels = spec.Labels
+
+	//will be refactored as input
+	prefixTableName := "backup"
+	ttlInDays := time.Duration(30)
+	backupID := ""
+	bqResourceDst := BQTable{
+		Project: bqResourceSrc.Project,
+		Dataset: "optimus_backup",
+		Table:   fmt.Sprintf("%s_%s_%s_%s", prefixTableName, bqResourceSrc.Dataset, bqResourceSrc.Table, backupID),
+	}
+
+	// make sure dataset is present
+	datasetDst := client.DatasetInProject(bqResourceDst.Project, bqResourceDst.Dataset)
+	if err := ensureDataset(ctx, datasetDst, BQDataset{
+		Project:  bqResourceSrc.Project,
+		Dataset:  bqResourceSrc.Dataset,
+		Metadata: BQDatasetMetadata{},
+	}, false); err != nil {
+		return err
+	}
+
+	datasetSrc := client.DatasetInProject(bqResourceSrc.Project, bqResourceSrc.Dataset)
+	if _, err := datasetSrc.Metadata(ctx); err != nil {
+		return err
+	}
+
+	// duplicate table
+	tableSrc := datasetSrc.Table(bqResourceSrc.Table)
+	tableDst := datasetDst.Table(bqResourceDst.Table)
+
+	copier := tableDst.CopierFrom(tableSrc)
+	job, err := copier.Run(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err(); err != nil {
+		return err
+	}
+
+	// update expiry
+	meta, err := tableDst.Metadata(ctx)
+	if err != nil {
+		return err
+	}
+	update := bigquery.TableMetadataToUpdate{
+		ExpirationTime: time.Now().Add(time.Hour * 24 * ttlInDays),
+	}
+	if _, err = tableDst.Update(ctx, update, meta.ETag); err != nil {
+		return err
+	}
+
+	return ensureTable(ctx, tableDst, bqResourceDst, false)
 }

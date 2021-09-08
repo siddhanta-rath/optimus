@@ -122,6 +122,7 @@ type DeleteResourceRequest struct {
 }
 
 type BackupResourceRequest struct {
+	ID       uuid.UUID
 	Resource ResourceSpec
 	Project  ProjectSpec
 	DryRun   bool

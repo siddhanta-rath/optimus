@@ -161,7 +161,18 @@ func (b *BigQuery) BackupResource(ctx context.Context, request models.BackupReso
 	if request.Resource.Type != models.ResourceTypeTable {
 		return models.ErrUnsupportedResource
 	}
-	return nil
+
+	svcAcc, ok := request.Project.Secret.GetByName(SecretName)
+	if !ok || len(svcAcc) == 0 {
+		return errors.New(fmt.Sprintf(errSecretNotFoundStr, SecretName, b.Name()))
+	}
+
+	client, err := b.ClientFac.New(ctx, svcAcc)
+	if err != nil {
+		return err
+	}
+
+	return backupTable(ctx, request.Resource, client)
 }
 
 func init() {
