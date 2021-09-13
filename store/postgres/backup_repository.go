@@ -6,18 +6,17 @@ import (
 
 	"gorm.io/datatypes"
 
-	"github.com/odpf/optimus/store"
-
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"github.com/odpf/optimus/models"
 	"github.com/pkg/errors"
 )
 
-type spec struct {
-	result      interface{}
-	description string
-	config      models.DestinationConfig
+type BackupDetail struct {
+	Urn         string
+	Result      map[string]interface{}
+	Description string
+	Config      models.DestinationConfig
 }
 
 type Backup struct {
@@ -33,22 +32,26 @@ type Backup struct {
 }
 
 type backupRepository struct {
-	db                      *gorm.DB
-	namespace               models.NamespaceSpec
-	datastore               models.Datastorer
-	projectResourceSpecRepo store.ProjectResourceSpecRepository
+	db         *gorm.DB
+	project    models.ProjectSpec
+	datastorer models.Datastorer
 }
 
-func (r Backup) FromSpec(backupSpec models.BackupSpec) (Backup, error) {
+func (b Backup) FromSpec(backupSpec models.BackupSpec) (Backup, error) {
 	adaptResource, err := Resource{}.FromSpec(backupSpec.Resource)
 	if err != nil {
 		return Backup{}, err
 	}
 
-	toDBSpec := spec{
-		result:      backupSpec.Result,
-		description: backupSpec.Description,
-		config:      backupSpec.Config,
+	//resultInBytes, err := json.Marshal(backupSpec.Result)
+	//if err != nil {
+	//	return Backup{}, nil
+	//}
+
+	toDBSpec := BackupDetail{
+		Result:      backupSpec.Result,
+		Description: backupSpec.Description,
+		Config:      backupSpec.Config,
 	}
 	specInBytes, err := json.Marshal(toDBSpec)
 	if err != nil {
@@ -58,12 +61,11 @@ func (r Backup) FromSpec(backupSpec models.BackupSpec) (Backup, error) {
 	return Backup{
 		ID:         backupSpec.ID,
 		ResourceID: adaptResource.ID,
-		Resource:   adaptResource,
 		Spec:       specInBytes,
 	}, nil
 }
 
-func (repo *backupRepository) Insert(spec models.BackupSpec) error {
+func (repo *backupRepository) Save(spec models.BackupSpec) error {
 	if len(spec.Resource.ID) == 0 {
 		return errors.New("resource cannot be empty")
 	}
@@ -74,11 +76,47 @@ func (repo *backupRepository) Insert(spec models.BackupSpec) error {
 	return repo.db.Create(&p).Error
 }
 
-func NewBackupRepository(db *gorm.DB, namespace models.NamespaceSpec, ds models.Datastorer, projectResourceSpecRepo store.ProjectResourceSpecRepository) *resourceSpecRepository {
-	return &resourceSpecRepository{
-		db:                      db,
-		namespace:               namespace,
-		datastore:               ds,
-		projectResourceSpecRepo: projectResourceSpecRepo,
+func (b Backup) ToSpec(ds models.Datastorer) (models.BackupSpec, error) {
+	backupSpec := BackupDetail{}
+	if err := json.Unmarshal(b.Spec, &backupSpec); err != nil {
+		return models.BackupSpec{}, err
+	}
+
+	resourceSpec, err := b.Resource.ToSpec(ds)
+	if err != nil {
+		return models.BackupSpec{}, err
+	}
+
+	return models.BackupSpec{
+		ID:          b.ID,
+		Resource:    resourceSpec,
+		Result:      backupSpec.Result,
+		Description: backupSpec.Description,
+		Config:      backupSpec.Config,
+	}, nil
+}
+
+func (repo *backupRepository) GetAll() ([]models.BackupSpec, error) {
+	var specs []models.BackupSpec
+	var backups []Backup
+	if err := repo.db.Preload("Resource").Joins("JOIN resource ON backup.resource_id = resource.id").
+		Where("resource.project_id = ?", repo.project.ID).Find(&backups).Error; err != nil {
+		return specs, err
+	}
+	for _, b := range backups {
+		adapted, err := b.ToSpec(repo.datastorer)
+		if err != nil {
+			return specs, errors.Wrap(err, "failed to adapt backup")
+		}
+		specs = append(specs, adapted)
+	}
+	return specs, nil
+}
+
+func NewBackupRepository(db *gorm.DB, projectSpec models.ProjectSpec, ds models.Datastorer) *backupRepository {
+	return &backupRepository{
+		db:         db,
+		project:    projectSpec,
+		datastorer: ds,
 	}
 }

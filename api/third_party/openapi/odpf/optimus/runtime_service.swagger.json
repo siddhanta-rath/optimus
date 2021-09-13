@@ -557,6 +557,73 @@
         ]
       }
     },
+    "/v1/project/{projectName}/namespace/{namespace}/datastore/{datastoreName}/resource/{resourceName}/backup": {
+      "post": {
+        "operationId": "RuntimeService_Backup",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/optimusBackupResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "projectName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "datastoreName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "resourceName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string"
+                },
+                "ignoreDownstream": {
+                  "type": "boolean"
+                },
+                "backupConfig": {
+                  "$ref": "#/definitions/optimusBackupConfig"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "RuntimeService"
+        ]
+      }
+    },
     "/v1/project/{projectName}/namespace/{namespace}/datastore/{datastoreName}/resource/{resourceName}/backup/dryrun": {
       "post": {
         "operationId": "RuntimeService_BackupDryRun",
@@ -1239,10 +1306,36 @@
         }
       }
     },
+    "optimusBackupConfig": {
+      "type": "object",
+      "properties": {
+        "dataset": {
+          "type": "string"
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "ttl": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "optimusBackupDryRunResponse": {
       "type": "object",
       "properties": {
         "resourceName": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "optimusBackupResponse": {
+      "type": "object",
+      "properties": {
+        "resultUrn": {
           "type": "array",
           "items": {
             "type": "string"
