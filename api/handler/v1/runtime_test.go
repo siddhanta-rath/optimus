@@ -849,7 +849,7 @@ func TestRuntimeServiceServer(t *testing.T) {
 		})
 	})
 
-	t.Run("ReadJobSpecification", func(t *testing.T) {
+	t.Run("GetJobSpecification", func(t *testing.T) {
 		t.Run("should read a job spec", func(t *testing.T) {
 			Version := "1.0.1"
 
@@ -943,8 +943,8 @@ func TestRuntimeServiceServer(t *testing.T) {
 			)
 
 			jobSpecAdapted, _ := adapter.ToJobProto(jobSpecs[0])
-			deployRequest := pb.ReadJobSpecificationRequest{ProjectName: projectName, JobName: jobSpecs[0].Name, Namespace: namespaceSpec.Name}
-			jobSpecResp, err := runtimeServiceServer.ReadJobSpecification(context.Background(), &deployRequest)
+			deployRequest := pb.GetJobSpecificationRequest{ProjectName: projectName, JobName: jobSpecs[0].Name, Namespace: namespaceSpec.Name}
+			jobSpecResp, err := runtimeServiceServer.GetJobSpecification(context.Background(), &deployRequest)
 			assert.Nil(t, err)
 			assert.Equal(t, jobSpecAdapted, jobSpecResp.Spec)
 		})

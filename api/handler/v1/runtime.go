@@ -375,7 +375,7 @@ func (sv *RuntimeServiceServer) CreateJobSpecification(ctx context.Context, req 
 	}, nil
 }
 
-func (sv *RuntimeServiceServer) ReadJobSpecification(ctx context.Context, req *pb.ReadJobSpecificationRequest) (*pb.ReadJobSpecificationResponse, error) {
+func (sv *RuntimeServiceServer) GetJobSpecification(ctx context.Context, req *pb.GetJobSpecificationRequest) (*pb.GetJobSpecificationResponse, error) {
 	projectRepo := sv.projectRepoFactory.New()
 	projSpec, err := projectRepo.GetByName(ctx, req.GetProjectName())
 	if err != nil {
@@ -398,7 +398,7 @@ func (sv *RuntimeServiceServer) ReadJobSpecification(ctx context.Context, req *p
 		return nil, status.Errorf(codes.Internal, "cannot serialize job: \n%s", err.Error())
 	}
 
-	return &pb.ReadJobSpecificationResponse{
+	return &pb.GetJobSpecificationResponse{
 		Spec: jobSpecAdapt,
 	}, nil
 }
