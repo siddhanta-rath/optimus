@@ -49,7 +49,7 @@ type NamespaceRepoFactory interface {
 }
 
 type SecretRepoFactory interface {
-	New(spec models.ProjectSpec) store.ProjectSecretRepository
+	New(projectSpec models.ProjectSpec, namespaceSpec models.NamespaceSpec) store.ProjectSecretRepository
 }
 
 type JobEventService interface {
@@ -656,7 +656,16 @@ func (sv *RuntimeServiceServer) RegisterSecret(ctx context.Context, req *pb.Regi
 		return nil, status.Errorf(codes.NotFound, "%s: project %s not found", err.Error(), req.GetProjectName())
 	}
 
-	secretRepo := sv.secretRepoFactory.New(projSpec)
+	namespaceSpec := models.NamespaceSpec{}
+	if req.GetNamespaceName() != "" {
+		namespaceRepo := sv.namespaceRepoFactory.New(projSpec)
+		namespaceSpec, err = namespaceRepo.GetByName(ctx, req.GetNamespaceName())
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "%s: namespace %s not found", err.Error(), req.GetNamespaceName())
+		}
+	}
+
+	secretRepo := sv.secretRepoFactory.New(projSpec, namespaceSpec)
 	if err := secretRepo.Save(ctx, models.ProjectSecretItem{
 		Name:  req.GetSecretName(),
 		Value: string(base64Decoded),

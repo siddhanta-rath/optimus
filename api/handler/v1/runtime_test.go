@@ -636,7 +636,7 @@ func TestRuntimeServiceServer(t *testing.T) {
 			defer projectSecretRepository.AssertExpectations(t)
 
 			projectSecretRepoFactory := new(mock.ProjectSecretRepoFactory)
-			projectSecretRepoFactory.On("New", projectSpec).Return(projectSecretRepository)
+			projectSecretRepoFactory.On("New", projectSpec, models.NamespaceSpec{}).Return(projectSecretRepository)
 			defer projectSecretRepoFactory.AssertExpectations(t)
 
 			jobService := new(mock.JobService)
@@ -695,7 +695,7 @@ func TestRuntimeServiceServer(t *testing.T) {
 			defer projectSecretRepository.AssertExpectations(t)
 
 			projectSecretRepoFactory := new(mock.ProjectSecretRepoFactory)
-			projectSecretRepoFactory.On("New", projectSpec).Return(projectSecretRepository)
+			projectSecretRepoFactory.On("New", projectSpec, models.NamespaceSpec{}).Return(projectSecretRepository)
 			defer projectSecretRepoFactory.AssertExpectations(t)
 
 			jobService := new(mock.JobService)

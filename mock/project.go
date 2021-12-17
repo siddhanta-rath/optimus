@@ -40,8 +40,8 @@ type ProjectSecretRepoFactory struct {
 	mock.Mock
 }
 
-func (fac *ProjectSecretRepoFactory) New(p models.ProjectSpec) store.ProjectSecretRepository {
-	args := fac.Called(p)
+func (fac *ProjectSecretRepoFactory) New(p models.ProjectSpec, n models.NamespaceSpec) store.ProjectSecretRepository {
+	args := fac.Called(p, n)
 	return args.Get(0).(store.ProjectSecretRepository)
 }
 

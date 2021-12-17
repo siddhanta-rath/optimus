@@ -1212,6 +1212,9 @@
               "properties": {
                 "value": {
                   "type": "string"
+                },
+                "namespaceName": {
+                  "type": "string"
                 }
               }
             }

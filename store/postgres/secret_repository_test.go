@@ -22,6 +22,11 @@ func TestSecretRepository(t *testing.T) {
 			"bucket": "gs://some_folder",
 		},
 	}
+	namespaceSpec := models.NamespaceSpec{
+		ID:          uuid.Must(uuid.NewRandom()),
+		Name:        "sample-namespace",
+		ProjectSpec: projectSpec,
+	}
 	hash, _ := models.NewApplicationSecret("32charshtesthashtesthashtesthash")
 
 	DBSetup := func() *gorm.DB {
@@ -63,26 +68,70 @@ func TestSecretRepository(t *testing.T) {
 			Name:  "t-optimus",
 			Value: "super-secret",
 		},
+		{
+			ID:    uuid.Must(uuid.NewRandom()),
+			Name:  "_OPTIMUS_sample_secret",
+			Value: "super-secret",
+		},
 	}
 
 	t.Run("Insert", func(t *testing.T) {
-		db := DBSetup()
-		sqlDB, _ := db.DB()
-		defer sqlDB.Close()
-		testModels := []models.ProjectSecretItem{}
-		testModels = append(testModels, testConfigs...)
+		t.Run("should able to insert secret without namespace set", func(t *testing.T) {
+			db := DBSetup()
+			sqlDB, _ := db.DB()
+			defer sqlDB.Close()
+			testModels := []models.ProjectSecretItem{}
+			testModels = append(testModels, testConfigs...)
 
-		repo := NewSecretRepository(db, projectSpec, hash)
+			repo := NewSecretRepository(db, projectSpec, models.NamespaceSpec{}, hash)
 
-		err := repo.Insert(ctx, testModels[0])
-		assert.Nil(t, err)
+			err := repo.Insert(ctx, testModels[0])
+			assert.Nil(t, err)
 
-		err = repo.Insert(ctx, testModels[1])
-		assert.NotNil(t, err)
+			err = repo.Insert(ctx, testModels[1])
+			assert.NotNil(t, err)
 
-		checkModel, err := repo.GetByID(ctx, testModels[0].ID)
-		assert.Nil(t, err)
-		assert.Equal(t, "g-optimus", checkModel.Name)
+			err = repo.Insert(ctx, testModels[3])
+			assert.Nil(t, err)
+
+			checkModel, err := repo.GetByID(ctx, testModels[0].ID)
+			assert.Nil(t, err)
+			assert.Equal(t, "g-optimus", checkModel.Name)
+			assert.Equal(t, models.SecretTypeUserDefined, checkModel.Type)
+
+			checkModel, err = repo.GetByID(ctx, testModels[3].ID)
+			assert.Nil(t, err)
+			assert.Equal(t, "_OPTIMUS_sample_secret", checkModel.Name)
+			assert.Equal(t, models.SecretTypeSystemDefined, checkModel.Type)
+		})
+		t.Run("should able to insert secret with namespace set", func(t *testing.T) {
+			db := DBSetup()
+			sqlDB, _ := db.DB()
+			defer sqlDB.Close()
+			testModels := []models.ProjectSecretItem{}
+			testModels = append(testModels, testConfigs...)
+
+			repo := NewSecretRepository(db, projectSpec, namespaceSpec, hash)
+
+			err := repo.Insert(ctx, testModels[0])
+			assert.Nil(t, err)
+
+			err = repo.Insert(ctx, testModels[1])
+			assert.NotNil(t, err)
+
+			err = repo.Insert(ctx, testModels[3])
+			assert.Nil(t, err)
+
+			checkModel, err := repo.GetByID(ctx, testModels[0].ID)
+			assert.Nil(t, err)
+			assert.Equal(t, "g-optimus", checkModel.Name)
+			assert.Equal(t, models.SecretTypeUserDefined, checkModel.Type)
+
+			checkModel, err = repo.GetByID(ctx, testModels[3].ID)
+			assert.Nil(t, err)
+			assert.Equal(t, "_OPTIMUS_sample_secret", checkModel.Name)
+			assert.Equal(t, models.SecretTypeSystemDefined, checkModel.Type)
+		})
 	})
 	t.Run("Upsert", func(t *testing.T) {
 		t.Run("insert different resource should insert two", func(t *testing.T) {
@@ -92,7 +141,7 @@ func TestSecretRepository(t *testing.T) {
 			testModelA := testConfigs[0]
 			testModelB := testConfigs[2]
 
-			repo := NewSecretRepository(db, projectSpec, hash)
+			repo := NewSecretRepository(db, projectSpec, namespaceSpec, hash)
 
 			//try for create
 			err := repo.Save(ctx, testModelA)
@@ -117,7 +166,7 @@ func TestSecretRepository(t *testing.T) {
 			defer sqlDB.Close()
 			testModelA := testConfigs[2]
 
-			repo := NewSecretRepository(db, projectSpec, hash)
+			repo := NewSecretRepository(db, projectSpec, namespaceSpec, hash)
 
 			//try for create
 			testModelA.Value = "gs://some_folder"
@@ -144,7 +193,7 @@ func TestSecretRepository(t *testing.T) {
 			testModelA := testConfigs[0]
 			testModelA.ID = uuid.Nil
 
-			repo := NewSecretRepository(db, projectSpec, hash)
+			repo := NewSecretRepository(db, projectSpec, namespaceSpec, hash)
 
 			//try for create
 			err := repo.Save(ctx, testModelA)
@@ -162,7 +211,7 @@ func TestSecretRepository(t *testing.T) {
 		testModels := []models.ProjectSecretItem{}
 		testModels = append(testModels, testConfigs...)
 
-		repo := NewSecretRepository(db, projectSpec, hash)
+		repo := NewSecretRepository(db, projectSpec, namespaceSpec, hash)
 
 		err := repo.Insert(ctx, testModels[0])
 		assert.Nil(t, err)
