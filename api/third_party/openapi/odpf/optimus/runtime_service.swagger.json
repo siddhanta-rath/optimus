@@ -1223,6 +1223,57 @@
         "tags": [
           "RuntimeService"
         ]
+      },
+      "put": {
+        "summary": "UpdateSecret updates existing secret of a project",
+        "operationId": "RuntimeService_UpdateSecret",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/optimusUpdateSecretResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "projectName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "secretName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "namespaceName": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "RuntimeService"
+        ]
       }
     },
     "/v1/version": {
@@ -2166,6 +2217,17 @@
       "type": "object"
     },
     "optimusUpdateResourceResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "optimusUpdateSecretResponse": {
       "type": "object",
       "properties": {
         "success": {
