@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"strings"
 	"time"
 
@@ -103,13 +104,24 @@ func (repo *secretRepository) Insert(ctx context.Context, resource models.Projec
 	return repo.db.WithContext(ctx).Save(&p).Error
 }
 
-func (repo *secretRepository) Save(ctx context.Context, spec models.ProjectSecretItem) error {
-	existingResource, err := repo.GetByName(ctx, spec.Name)
+func (repo *secretRepository) Register(ctx context.Context, spec models.ProjectSecretItem) error {
+	_, err := repo.GetByName(ctx, spec.Name)
 	if errors.Is(err, store.ErrResourceNotFound) {
 		return repo.Insert(ctx, spec)
 	} else if err != nil {
 		return errors.Wrap(err, "unable to find secret by name")
 	}
+	return errors.New("secret already exist")
+}
+
+func (repo *secretRepository) Update(ctx context.Context, spec models.ProjectSecretItem) error {
+	existingResource, err := repo.GetByName(ctx, spec.Name)
+	if errors.Is(err, store.ErrResourceNotFound) {
+		return errors.New(fmt.Sprintf("secret %s does not exist", spec.Name))
+	} else if err != nil {
+		return errors.Wrap(err, "unable to find secret by name")
+	}
+
 	resource, err := Secret{}.FromSpec(spec, repo.project, repo.namespace, repo.hash)
 	if err != nil {
 		return err

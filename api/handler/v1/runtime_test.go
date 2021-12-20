@@ -632,7 +632,7 @@ func TestRuntimeServiceServer(t *testing.T) {
 			}
 
 			projectSecretRepository := new(mock.ProjectSecretRepository)
-			projectSecretRepository.On("Save", ctx, sec).Return(nil)
+			projectSecretRepository.On("Register", ctx, sec).Return(nil)
 			defer projectSecretRepository.AssertExpectations(t)
 
 			projectSecretRepoFactory := new(mock.ProjectSecretRepoFactory)
@@ -691,7 +691,7 @@ func TestRuntimeServiceServer(t *testing.T) {
 			}
 
 			projectSecretRepository := new(mock.ProjectSecretRepository)
-			projectSecretRepository.On("Save", ctx, sec).Return(errors.New("random error"))
+			projectSecretRepository.On("Register", ctx, sec).Return(errors.New("random error"))
 			defer projectSecretRepository.AssertExpectations(t)
 
 			projectSecretRepoFactory := new(mock.ProjectSecretRepoFactory)
@@ -721,7 +721,126 @@ func TestRuntimeServiceServer(t *testing.T) {
 			}
 			resp, err := runtimeServiceServer.RegisterSecret(context.Background(), &secretRequest)
 			assert.Nil(t, resp)
-			assert.Equal(t, "rpc error: code = Internal desc = random error: failed to save secret hello", err.Error())
+			assert.Equal(t, "rpc error: code = Internal desc = random error: failed to register secret hello", err.Error())
+		})
+	})
+
+	t.Run("UpdateSecret", func(t *testing.T) {
+		t.Run("should update a secret successfully", func(t *testing.T) {
+			projectName := "a-data-project"
+
+			projectSpec := models.ProjectSpec{
+				Name: projectName,
+				Config: map[string]string{
+					"BUCKET": "gs://some_folder",
+				},
+			}
+			adapter := v1.NewAdapter(nil, nil)
+
+			projectRepository := new(mock.ProjectRepository)
+			projectRepository.On("GetByName", ctx, projectSpec.Name).Return(projectSpec, nil)
+			defer projectRepository.AssertExpectations(t)
+
+			projectRepoFactory := new(mock.ProjectRepoFactory)
+			projectRepoFactory.On("New").Return(projectRepository)
+			defer projectRepoFactory.AssertExpectations(t)
+
+			sec := models.ProjectSecretItem{
+				Name:  "hello",
+				Value: "world",
+			}
+
+			projectSecretRepository := new(mock.ProjectSecretRepository)
+			projectSecretRepository.On("Update", ctx, sec).Return(nil)
+			defer projectSecretRepository.AssertExpectations(t)
+
+			projectSecretRepoFactory := new(mock.ProjectSecretRepoFactory)
+			projectSecretRepoFactory.On("New", projectSpec, models.NamespaceSpec{}).Return(projectSecretRepository)
+			defer projectSecretRepoFactory.AssertExpectations(t)
+
+			jobService := new(mock.JobService)
+			defer jobService.AssertExpectations(t)
+
+			runtimeServiceServer := v1.NewRuntimeServiceServer(
+				log,
+				"someVersion1.0",
+				jobService, nil, nil,
+				projectRepoFactory,
+				nil,
+				projectSecretRepoFactory,
+				adapter,
+				nil,
+				nil,
+				nil,
+			)
+
+			secretRequest := pb.UpdateSecretRequest{
+				ProjectName: projectSpec.Name,
+				SecretName:  "hello",
+				Value:       base64.StdEncoding.EncodeToString([]byte("world")),
+			}
+			resp, err := runtimeServiceServer.UpdateSecret(context.Background(), &secretRequest)
+			assert.Nil(t, err)
+			assert.Equal(t, &pb.UpdateSecretResponse{
+				Success: true,
+			}, resp)
+		})
+		t.Run("should return error if updating to secret repository fails", func(t *testing.T) {
+			projectName := "a-data-project"
+
+			projectSpec := models.ProjectSpec{
+				Name: projectName,
+				Config: map[string]string{
+					"BUCKET": "gs://some_folder",
+				},
+			}
+			adapter := v1.NewAdapter(nil, nil)
+
+			projectRepository := new(mock.ProjectRepository)
+			projectRepository.On("GetByName", ctx, projectSpec.Name).Return(projectSpec, nil)
+			defer projectRepository.AssertExpectations(t)
+
+			projectRepoFactory := new(mock.ProjectRepoFactory)
+			projectRepoFactory.On("New").Return(projectRepository)
+			defer projectRepoFactory.AssertExpectations(t)
+
+			sec := models.ProjectSecretItem{
+				Name:  "hello",
+				Value: "world",
+			}
+
+			projectSecretRepository := new(mock.ProjectSecretRepository)
+			projectSecretRepository.On("Update", ctx, sec).Return(errors.New("random error"))
+			defer projectSecretRepository.AssertExpectations(t)
+
+			projectSecretRepoFactory := new(mock.ProjectSecretRepoFactory)
+			projectSecretRepoFactory.On("New", projectSpec, models.NamespaceSpec{}).Return(projectSecretRepository)
+			defer projectSecretRepoFactory.AssertExpectations(t)
+
+			jobService := new(mock.JobService)
+			defer jobService.AssertExpectations(t)
+
+			runtimeServiceServer := v1.NewRuntimeServiceServer(
+				log,
+				"someVersion1.0",
+				jobService, nil, nil,
+				projectRepoFactory,
+				nil,
+				projectSecretRepoFactory,
+				adapter,
+				nil,
+				nil,
+				nil,
+			)
+
+			secretRequest := pb.UpdateSecretRequest{
+				ProjectName: projectSpec.Name,
+				SecretName:  "hello",
+				Value:       base64.StdEncoding.EncodeToString([]byte("world")),
+			}
+			resp, err := runtimeServiceServer.UpdateSecret(context.Background(), &secretRequest)
+			assert.Nil(t, resp)
+			assert.Equal(t, "rpc error: code = Internal desc = random error: failed to update secret hello", err.Error())
 		})
 	})
 

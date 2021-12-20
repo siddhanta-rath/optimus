@@ -49,7 +49,11 @@ type ProjectSecretRepository struct {
 	mock.Mock
 }
 
-func (pr *ProjectSecretRepository) Save(ctx context.Context, spec models.ProjectSecretItem) error {
+func (pr *ProjectSecretRepository) Register(ctx context.Context, spec models.ProjectSecretItem) error {
+	return pr.Called(ctx, spec).Error(0)
+}
+
+func (pr *ProjectSecretRepository) Update(ctx context.Context, spec models.ProjectSecretItem) error {
 	return pr.Called(ctx, spec).Error(0)
 }
 

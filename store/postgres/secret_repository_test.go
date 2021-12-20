@@ -4,6 +4,7 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -133,7 +134,7 @@ func TestSecretRepository(t *testing.T) {
 			assert.Equal(t, models.SecretTypeSystemDefined, checkModel.Type)
 		})
 	})
-	t.Run("Upsert", func(t *testing.T) {
+	t.Run("Register", func(t *testing.T) {
 		t.Run("insert different resource should insert two", func(t *testing.T) {
 			db := DBSetup()
 			sqlDB, _ := db.DB()
@@ -144,7 +145,7 @@ func TestSecretRepository(t *testing.T) {
 			repo := NewSecretRepository(db, projectSpec, namespaceSpec, hash)
 
 			//try for create
-			err := repo.Save(ctx, testModelA)
+			err := repo.Register(ctx, testModelA)
 			assert.Nil(t, err)
 
 			checkModel, err := repo.GetByID(ctx, testModelA.ID)
@@ -152,7 +153,7 @@ func TestSecretRepository(t *testing.T) {
 			assert.Equal(t, "g-optimus", checkModel.Name)
 
 			//try for update
-			err = repo.Save(ctx, testModelB)
+			err = repo.Register(ctx, testModelB)
 			assert.Nil(t, err)
 
 			checkModel, err = repo.GetByID(ctx, testModelB.ID)
@@ -160,7 +161,7 @@ func TestSecretRepository(t *testing.T) {
 			assert.Equal(t, "t-optimus", checkModel.Name)
 			assert.Equal(t, "super-secret", checkModel.Value)
 		})
-		t.Run("insert same resource twice should overwrite existing", func(t *testing.T) {
+		t.Run("insert same resource twice should throw error", func(t *testing.T) {
 			db := DBSetup()
 			sqlDB, _ := db.DB()
 			defer sqlDB.Close()
@@ -170,7 +171,31 @@ func TestSecretRepository(t *testing.T) {
 
 			//try for create
 			testModelA.Value = "gs://some_folder"
-			err := repo.Save(ctx, testModelA)
+			err := repo.Register(ctx, testModelA)
+			assert.Nil(t, err)
+
+			checkModel, err := repo.GetByID(ctx, testModelA.ID)
+			assert.Nil(t, err)
+			assert.Equal(t, "t-optimus", checkModel.Name)
+
+			//try for create the same secret
+			testModelA.Value = "gs://another_folder"
+			err = repo.Register(ctx, testModelA)
+			assert.Equal(t, "secret already exist", err.Error())
+		})
+	})
+	t.Run("Update", func(t *testing.T) {
+		t.Run("update same resource twice should overwrite existing", func(t *testing.T) {
+			db := DBSetup()
+			sqlDB, _ := db.DB()
+			defer sqlDB.Close()
+			testModelA := testConfigs[2]
+
+			repo := NewSecretRepository(db, projectSpec, namespaceSpec, hash)
+
+			//try for create
+			testModelA.Value = "gs://some_folder"
+			err := repo.Register(ctx, testModelA)
 			assert.Nil(t, err)
 
 			checkModel, err := repo.GetByID(ctx, testModelA.ID)
@@ -179,29 +204,24 @@ func TestSecretRepository(t *testing.T) {
 
 			//try for update
 			testModelA.Value = "gs://another_folder"
-			err = repo.Save(ctx, testModelA)
+			err = repo.Update(ctx, testModelA)
 			assert.Nil(t, err)
 
 			checkModel, err = repo.GetByID(ctx, testModelA.ID)
 			assert.Nil(t, err)
 			assert.Equal(t, "gs://another_folder", checkModel.Value)
 		})
-		t.Run("upsert without ID should auto generate it", func(t *testing.T) {
+		t.Run("update not existing secret should return error", func(t *testing.T) {
 			db := DBSetup()
 			sqlDB, _ := db.DB()
 			defer sqlDB.Close()
 			testModelA := testConfigs[0]
-			testModelA.ID = uuid.Nil
 
 			repo := NewSecretRepository(db, projectSpec, namespaceSpec, hash)
 
-			//try for create
-			err := repo.Save(ctx, testModelA)
-			assert.Nil(t, err)
-
-			checkModel, err := repo.GetByName(ctx, testModelA.Name)
-			assert.Nil(t, err)
-			assert.Equal(t, "g-optimus", checkModel.Name)
+			//try for update
+			err := repo.Update(ctx, testModelA)
+			assert.Equal(t, fmt.Sprintf("secret %s does not exist", testModelA.Name), err.Error())
 		})
 	})
 	t.Run("GetByName", func(t *testing.T) {
