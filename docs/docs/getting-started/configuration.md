@@ -95,6 +95,5 @@ Configuration file can be stored in following locations:
 ```shell
 ./
 <exec>/
-~/.config/
 ~/.optimus/
 ```
